@@ -83,8 +83,14 @@ async def run_engine(
     page_count: int,
     settings: Settings,
     options: dict[str, Any] | None = None,
+    timeout_s: int | None = None,
 ) -> RunOutcome:
-    """Run one engine adapter and normalise its output."""
+    """Run one engine adapter and normalise its output.
+
+    ``timeout_s`` overrides the engine's registered timeout. Region runs pass
+    a scaled timeout because a cell-OCR invocation processes N crops in one
+    subprocess — the page-level timeout does not cover that workload.
+    """
     started = time.perf_counter()
 
     available, reason = is_available(engine, settings)
@@ -119,11 +125,12 @@ async def run_engine(
         env=env,
     )
 
+    effective_timeout = timeout_s if timeout_s is not None else engine.timeout_s
     timed_out = False
     try:
         stdout, stderr = await asyncio.wait_for(
             proc.communicate(json.dumps(request).encode("utf-8")),
-            timeout=engine.timeout_s,
+            timeout=effective_timeout,
         )
     except asyncio.TimeoutError:
         timed_out = True
@@ -138,7 +145,7 @@ async def run_engine(
             engine_id=engine.id,
             ok=False,
             duration_ms=duration_ms,
-            error=f"Timed out after {engine.timeout_s}s",
+            error=f"Timed out after {effective_timeout}s",
             stderr=stderr_text,
             exit_code=proc.returncode,
             timed_out=True,

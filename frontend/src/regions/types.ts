@@ -72,11 +72,12 @@ export interface RegionRunDetail {
 }
 
 export interface RegionProgressEvent {
-  type: "start" | "region" | "done";
+  type: "start" | "region" | "engine" | "done";
   run_id?: string;
   total?: number;
   completed?: number;
   region_id?: string;
+  engine_id?: string;
   engines?: string[];
   ok?: boolean;
   status?: string;

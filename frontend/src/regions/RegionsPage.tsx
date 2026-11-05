@@ -303,6 +303,12 @@ export default function RegionsPage() {
   const regions = layout?.regions ?? [];
   const completed = progress?.completed ?? 0;
   const total = progress?.total ?? 0;
+  const currentEngine =
+    progress?.type === "engine" ? progress.engine_id : null;
+  const currentRegionName =
+    progress?.type === "engine" && progress.region_id
+      ? regions.find((r) => r.id === progress.region_id)?.name
+      : null;
 
   return (
     <div className="app wide">
@@ -363,7 +369,11 @@ export default function RegionsPage() {
               onClick={() => void runRegions()}
               disabled={running || regions.every((region) => region.kind === "ignore")}
             >
-              {running ? `Running ${completed}/${total}…` : "Run regions"}
+              {running
+                ? currentEngine
+                  ? `Running ${completed}/${total} · ${currentRegionName ?? ""} · ${currentEngine}…`
+                  : `Running ${completed}/${total}…`
+                : "Run regions"}
             </button>
           </div>
         </div>

@@ -659,6 +659,12 @@ async def _execute_region_run(
     failures = 0
     work_dir = settings.work_dir / document_id / "regions"
 
+    async def on_engine_start(region_id: str, engine_id: str) -> None:
+        """Tell the UI which engine is grinding so it never looks hung."""
+        await queue.put(
+            {"type": "engine", "region_id": region_id, "engine_id": engine_id}
+        )
+
     try:
         for region in regions:
             outcomes = await region_runner.run_region(
@@ -667,6 +673,9 @@ async def _execute_region_run(
                 engine_ids=engine_ids,
                 settings=settings,
                 work_dir=work_dir,
+                on_engine_start=lambda engine_id, _rid=region["id"]: on_engine_start(
+                    _rid, engine_id
+                ),
             )
             for outcome in outcomes:
                 store.save_region_result(

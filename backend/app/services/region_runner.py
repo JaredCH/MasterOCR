@@ -67,6 +67,13 @@ DEFAULT_LINE_ENGINES = ["tesseract-psm11", "rapidocr"]
 # page-level PSM 3/11 the adapters default to would mis-segment a crop.
 CELL_PSM = 7
 
+# Cell-OCR subprocess timeout scaling. One subprocess handles N cell crops,
+# so the budget is per-cell cost x N plus a fixed startup allowance. The
+# per-cell figure is generous (slow CPU hosts like Railway run ~10x slower
+# than a dev machine) — the timeout is a hang guard, not a speed target.
+CELL_TIMEOUT_PER_CELL = 8  # seconds per cell crop
+CELL_TIMEOUT_BASE = 60  # subprocess startup + model load
+
 
 @dataclass
 class RegionOutcome:
@@ -152,6 +159,7 @@ async def _run_table_region(
     region_bbox_px: tuple[int, int, int, int],
     work_dir: Path,
     floor: float,
+    on_engine_start: Any | None = None,
 ) -> list[RegionOutcome]:
     """Run every engine against one table region."""
     manual_rows = [float(v) for v in (region.get("manual_rows") or [])]
@@ -182,6 +190,7 @@ async def _run_table_region(
                     scaffold=scaffold,
                     cell_count=cell_count,
                     floor=floor,
+                    on_engine_start=on_engine_start,
                 )
         except Exception as exc:  # noqa: BLE001 - one engine failing is not fatal
             logger.exception("region %s: engine %s crashed", region["id"], engine.id)
@@ -204,6 +213,7 @@ async def _run_cell_ocr(
     scaffold: list[list[dict[str, Any]]],
     cell_count: int,
     floor: float,
+    on_engine_start: Any | None = None,
 ) -> RegionOutcome:
     """OCR every cell crop through one engine in a single subprocess."""
     started = time.perf_counter()
@@ -220,6 +230,13 @@ async def _run_cell_ocr(
                 cell_image.save(path)
                 flat.append((cell["row"], cell["col"], path))
 
+        if on_engine_start is not None:
+            await on_engine_start(engine.id)
+
+        # The page-level timeout covers ONE page. A cell run processes N
+        # crops in a single subprocess, so scale the budget with the cell
+        # count: per-cell cost x N, plus a fixed startup allowance.
+        scaled_timeout = max(engine.timeout_s, CELL_TIMEOUT_PER_CELL * len(flat) + CELL_TIMEOUT_BASE)
         outcome = await run_engine(
             engine,
             pdf_path=tmp_path / "cells.pdf",
@@ -227,6 +244,7 @@ async def _run_cell_ocr(
             page_count=len(flat),
             settings=_settings(),
             options={"psm": CELL_PSM},
+            timeout_s=scaled_timeout,
         )
 
     duration_ms = int((time.perf_counter() - started) * 1000)
@@ -403,10 +421,13 @@ async def _run_text_region(
     engines: list[Any],
     *,
     crop: Image.Image,
+    on_engine_start: Any | None = None,
 ) -> list[RegionOutcome]:
     """Run OCR on a line, text, or key-value region."""
     outcomes: list[RegionOutcome] = []
     for engine in engines:
+        if on_engine_start is not None:
+            await on_engine_start(engine.id)
         started = time.perf_counter()
         with tempfile.TemporaryDirectory(prefix="region-text-") as tmp:
             crop_path = Path(tmp) / "region.png"
@@ -480,6 +501,7 @@ async def run_region(
     settings: Settings,
     work_dir: Path,
     floor: float = region_service.DEFAULT_CONFIDENCE_FLOOR,
+    on_engine_start: Any | None = None,
 ) -> list[RegionOutcome]:
     """Run every engine against one region and return normalized outcomes."""
     kind = region.get("kind")
@@ -528,5 +550,6 @@ async def run_region(
             region_bbox_px=bbox,
             work_dir=work_dir,
             floor=floor,
+            on_engine_start=on_engine_start,
         )
-    return await _run_text_region(region, engines, crop=crop)
+    return await _run_text_region(region, engines, crop=crop, on_engine_start=on_engine_start)
