@@ -8,6 +8,11 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    env:
+      # Settings defaults DATA_DIR to /data, which is the Railway volume mount
+      # and is not writable on a GitHub runner. get_settings() creates the
+      # directory eagerly, so the tests need a writable path.
+      DATA_DIR: ${{ runner.temp }}/masterocr-data
     steps:
       - uses: actions/checkout@v4
 
