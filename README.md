@@ -57,8 +57,8 @@ full table with licenses, costs, and free-tier limits.
 
 | Tier | Count | Runs on Railway | Notes |
 | --- | --- | --- | --- |
-| 1 — Core CPU | 16 | Yes, default image | Text-layer extractors, Tesseract variants, RapidOCR, table tools |
-| 2 — Heavy CPU | 15 | Only with `INSTALL_HEAVY=true` | torch/paddle engines incl. Docling; ~4 GB extra image, 5–15 s/page |
+| 1 — Core CPU | 15 | Yes, default image | Text-layer extractors, Tesseract variants, RapidOCR, table tools |
+| 2 — Heavy CPU | 16 | Only with `INSTALL_HEAVY=true` | torch/paddle engines incl. Docling and Unstructured; ~4 GB extra image, 5–15 s/page |
 | 3 — Free API | 9 | Yes, with a key | OCR.space, Google Vision, Azure DI, Gemini, Mistral, LlamaParse |
 | 4 — Paid API | 10 | Yes, with a key | Textract, Mathpix, Datalab, DeepInfra, OpenAI, Claude, Reducto |
 | 5 — GPU only | 10 | **No** | Documented stubs; see [docs/GPU_ENGINES.md](docs/GPU_ENGINES.md) |
@@ -167,9 +167,10 @@ docker build --build-arg INSTALL_HEAVY=true -t masterocr:heavy .
 Then set `INSTALL_HEAVY=true` in the environment so the registry marks them
 available. Expect a ~4 GB image and slow CPU inference.
 
-Docling lives in this tier rather than the default image: it is CPU-capable, but
-it pulls `torch` (and the CUDA wheels that come with it) as a transitive
-dependency, which is far too large to ship by default.
+Docling and Unstructured live in this tier rather than the default image: both are
+CPU-capable, but they pull `torch` (and the CUDA wheels that come with it) as a
+transitive dependency, which is far too large to ship by default. Unstructured's
+`hi_res` strategy needs `unstructured-inference`, which requires torch.
 
 Three heavy engines are deliberately absent from `requirements-heavy.txt` because
 their pins cannot coexist with the core set — `surya-ocr` and `marker-pdf` need

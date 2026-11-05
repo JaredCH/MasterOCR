@@ -16,7 +16,7 @@ wins.
 
 ---
 
-## Tier 1 — Core CPU (17)
+## Tier 1 — Core CPU (15)
 
 Installed in the default image. No API key, no GPU.
 
@@ -32,9 +32,7 @@ Installed in the default image. No API key, no GPU.
 | `tesseract-psm11` | Tesseract 5 | tesseract-ocr | OCR | Apache-2.0 | **Sparse text — usually best for schematics** |
 | `tesseract-psm12` | Tesseract 5 | tesseract-ocr | OCR | Apache-2.0 | Sparse + orientation detection |
 | `rapidocr` | RapidOCR | RapidAI | OCR | Apache-2.0 | PP-OCRv4 on ONNX; **best performer on the sample corpus** |
-| `docling` | Docling | IBM / LF AI | docparse | MIT | Layout, reading order, table structure. Tier 2: pulls torch |
 | `markitdown` | MarkItDown | Microsoft | docparse | MIT | Text-layer only; a useful control |
-| `unstructured` | Unstructured | Unstructured.io | docparse | Apache-2.0 | Element-level output for structure scoring |
 | `ocrmypdf` | OCRmyPDF | OCRmyPDF | OCR | MPL-2.0 | Deskew + cleanup + Tesseract |
 | `camelot` | Camelot | Camelot | table | MIT | Lattice mode needs ruling lines |
 | `img2table` | img2table | img2table | table | MIT | Works on rasterized pages |
@@ -42,7 +40,7 @@ Installed in the default image. No API key, no GPU.
 
 ---
 
-## Tier 2 — Heavy CPU (15)
+## Tier 2 — Heavy CPU (16)
 
 Requires `--build-arg INSTALL_HEAVY=true` and `INSTALL_HEAVY=true` in the
 environment. Adds roughly 4 GB to the image and runs at 5–15 s/page on CPU.
@@ -50,6 +48,7 @@ environment. Adds roughly 4 GB to the image and runs at 5–15 s/page on CPU.
 | ID | Engine | Vendor | License | Notes |
 | --- | --- | --- | --- | --- |
 | `docling` | Docling | IBM / LF AI | MIT | Layout, reading order, table structure |
+| `unstructured` | Unstructured | Unstructured.io | Apache-2.0 | Element-level output for structure scoring |
 | `easyocr` | EasyOCR | JaidedAI | Apache-2.0 | CRAFT + CRNN; robust on rotated labels |
 | `paddleocr` | PaddleOCR PP-OCRv5 | Baidu | Apache-2.0 | Very strong on dense small text |
 | `paddleocr-structure` | PP-StructureV3 | Baidu | Apache-2.0 | Layout + tables + formulas with cell coords |

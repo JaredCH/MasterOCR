@@ -228,14 +228,16 @@ _TIER1: list[Engine] = [
         id="unstructured",
         name="Unstructured (hi_res)",
         vendor="Unstructured.io",
-        tier=1,
+        tier=2,
         kind="docparse",
         license="Apache-2.0",
         license_note="Permissive. hi_res strategy pulls in detectron2/YOLOX layout weights "
         "(Apache-2.0).",
         output="json",
         timeout_s=300,
-        notes="Element-level output (Title, Table, NarrativeText) — good for structure scoring.",
+        requires_heavy=True,
+        notes="Element-level output (Title, Table, NarrativeText) — good for structure "
+        "scoring. hi_res needs torch, so it ships only with INSTALL_HEAVY=true.",
         tags=("docparse", "elements"),
     ),
     Engine(
