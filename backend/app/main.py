@@ -8,9 +8,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import shutil
 import time
 import uuid
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -36,10 +38,64 @@ from app.services.store import Store
 settings = get_settings()
 store = Store(settings.db_path)
 
+logger = logging.getLogger("masterocr")
+
+# How often the retention sweep runs. The sweep itself is cheap (one indexed
+# DELETE plus a directory removal per expired document), so an hourly cadence
+# keeps the volume bounded without needing a cron service.
+RETENTION_SWEEP_INTERVAL_S = 3600
+
+
+def _purge_expired() -> int:
+    """Delete documents past RETENTION_HOURS, including their files on disk.
+
+    The DB rows cascade to pages/runs/results/metrics/scores, but the upload and
+    rendered page images live on the volume, so they have to be removed
+    explicitly or the volume grows without bound.
+    """
+    cutoff = time.time() - settings.retention_hours * 3600
+    expired = store.expired_documents(cutoff)
+    if not expired:
+        return 0
+
+    for document in expired:
+        # stored_path is <work_dir>/<document_id>/input.pdf
+        job_dir = Path(document["stored_path"]).parent
+        if job_dir.is_dir() and job_dir.parent == settings.work_dir:
+            shutil.rmtree(job_dir, ignore_errors=True)
+
+    removed = store.purge_older_than(cutoff)
+    logger.info("retention: purged %d document(s) older than %dh", removed, settings.retention_hours)
+    return removed
+
+
+async def _retention_loop() -> None:
+    while True:
+        try:
+            await asyncio.to_thread(_purge_expired)
+        except Exception:  # noqa: BLE001 - a failed sweep must not kill the loop
+            logger.exception("retention sweep failed")
+        await asyncio.sleep(RETENTION_SWEEP_INTERVAL_S)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    task = asyncio.create_task(_retention_loop())
+    try:
+        yield
+    finally:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+
 app = FastAPI(
     title="MasterOCR",
     description="Compare OCR engines on PDF isometrics and schematics.",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 # In-memory progress channels: document_id -> asyncio.Queue of events.

@@ -24,6 +24,28 @@ const TIER_LABELS: Record<number, string> = {
   5: "GPU only",
 };
 
+// Grouping is by kind rather than tier: on a drawing, what matters first is
+// whether an engine reads the text layer, rasterizes and OCRs, or parses
+// structure. Tier is still shown as a badge on each card.
+const KIND_ORDER = ["text-layer", "ocr", "docparse", "table", "vlm-api", "vlm-local"];
+const KIND_LABELS: Record<string, string> = {
+  "text-layer": "Text layer",
+  ocr: "OCR",
+  docparse: "Document parsing",
+  table: "Table extraction",
+  "vlm-api": "Vision model (API)",
+  "vlm-local": "Vision model (local)",
+};
+
+const KIND_HINTS: Record<string, string> = {
+  "text-layer": "Reads the embedded text layer. Returns nothing on scans or CAD plots.",
+  ocr: "Rasterizes the page and recognizes glyphs. The only option for vector plots.",
+  docparse: "Recovers layout, reading order, and structure as markdown.",
+  table: "Extracts tabular regions into rows and cells.",
+  "vlm-api": "Sends page images to a hosted vision model. Needs a key.",
+  "vlm-local": "Local vision models. GPU-only, so never runnable on Railway.",
+};
+
 function pct(value: number | null | undefined): string {
   if (value === null || value === undefined) return "—";
   return `${(value * 100).toFixed(1)}%`;
@@ -68,6 +90,39 @@ export default function App() {
     () => engines.filter((engine) => !engine.available),
     [engines]
   );
+
+  // Group runnable engines by kind, preserving KIND_ORDER and dropping empty
+  // groups so the page only shows categories that actually have engines.
+  const groups = useMemo(() => {
+    const byKind = new Map<string, EngineInfo[]>();
+    for (const engine of available) {
+      const bucket = byKind.get(engine.kind) ?? [];
+      bucket.push(engine);
+      byKind.set(engine.kind, bucket);
+    }
+    const ordered = KIND_ORDER.filter((kind) => byKind.has(kind));
+    for (const kind of byKind.keys()) {
+      if (!ordered.includes(kind)) ordered.push(kind);
+    }
+    return ordered.map((kind) => ({
+      kind,
+      label: KIND_LABELS[kind] ?? kind,
+      hint: KIND_HINTS[kind] ?? "",
+      engines: byKind.get(kind) ?? [],
+    }));
+  }, [available]);
+
+  const toggleGroup = (kind: string, on: boolean) => {
+    const ids = groups.find((group) => group.kind === kind)?.engines.map((e) => e.id) ?? [];
+    setSelected((current) => {
+      const next = new Set(current);
+      for (const id of ids) {
+        if (on) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  };
 
   const handleUpload = useCallback(
     async (file: File) => {
@@ -157,26 +212,56 @@ export default function App() {
           <p className="hint">
             {selected.size} of {available.length} runnable engines selected.
           </p>
-          <div className="engine-grid">
-            {available.map((engine) => (
-              <label
-                key={engine.id}
-                className={`engine-card ${selected.has(engine.id) ? "on" : ""}`}
-              >
-                <input
-                  type="checkbox"
-                  checked={selected.has(engine.id)}
-                  onChange={() => toggleEngine(engine.id)}
-                />
-                <div>
-                  <strong>{engine.name}</strong>
-                  <span className="meta">
-                    {engine.vendor} · {TIER_LABELS[engine.tier]} · {engine.license}
-                  </span>
-                  <span className="notes">{engine.notes}</span>
-                </div>
-              </label>
-            ))}
+          <div className="engine-groups">
+            {groups.map((group) => {
+              const allOn = group.engines.every((e) => selected.has(e.id));
+              const someOn = group.engines.some((e) => selected.has(e.id));
+              return (
+                <details key={group.kind} className="engine-group" open>
+                  <summary>
+                    <span className="group-title">
+                      {group.label}
+                      <span className="group-count">
+                        {group.engines.filter((e) => selected.has(e.id)).length}/
+                        {group.engines.length}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      className="group-toggle"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        toggleGroup(group.kind, !allOn);
+                      }}
+                    >
+                      {allOn ? "Clear" : someOn ? "All" : "All"}
+                    </button>
+                  </summary>
+                  {group.hint && <p className="group-hint">{group.hint}</p>}
+                  <div className="engine-grid">
+                    {group.engines.map((engine) => (
+                      <label
+                        key={engine.id}
+                        className={`engine-card ${selected.has(engine.id) ? "on" : ""}`}
+                        title={`${engine.vendor} · ${engine.license}${
+                          engine.notes ? `\n${engine.notes}` : ""
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected.has(engine.id)}
+                          onChange={() => toggleEngine(engine.id)}
+                        />
+                        <span className="engine-name">{engine.name}</span>
+                        <span className={`tier-badge tier-${engine.tier}`}>
+                          {TIER_LABELS[engine.tier] ?? `Tier ${engine.tier}`}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </details>
+              );
+            })}
           </div>
 
           {unavailable.length > 0 && (

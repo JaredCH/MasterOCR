@@ -31,8 +31,8 @@ Installed in the default image. No API key, no GPU.
 | `tesseract-psm3` | Tesseract 5 | tesseract-ocr | OCR | Apache-2.0 | Default auto segmentation |
 | `tesseract-psm11` | Tesseract 5 | tesseract-ocr | OCR | Apache-2.0 | **Sparse text — usually best for schematics** |
 | `tesseract-psm12` | Tesseract 5 | tesseract-ocr | OCR | Apache-2.0 | Sparse + orientation detection |
-| `rapidocr` | RapidOCR | RapidAI | OCR | Apache-2.0 | PP-OCRv4 on ONNX; best CPU OCR value |
-| `docling` | Docling | IBM / LF AI | docparse | MIT | Layout, reading order, table structure |
+| `rapidocr` | RapidOCR | RapidAI | OCR | Apache-2.0 | PP-OCRv4 on ONNX; **best performer on the sample corpus** |
+| `docling` | Docling | IBM / LF AI | docparse | MIT | Layout, reading order, table structure. Tier 2: pulls torch |
 | `markitdown` | MarkItDown | Microsoft | docparse | MIT | Text-layer only; a useful control |
 | `unstructured` | Unstructured | Unstructured.io | docparse | Apache-2.0 | Element-level output for structure scoring |
 | `ocrmypdf` | OCRmyPDF | OCRmyPDF | OCR | MPL-2.0 | Deskew + cleanup + Tesseract |
@@ -42,27 +42,35 @@ Installed in the default image. No API key, no GPU.
 
 ---
 
-## Tier 2 — Heavy CPU (14)
+## Tier 2 — Heavy CPU (15)
 
 Requires `--build-arg INSTALL_HEAVY=true` and `INSTALL_HEAVY=true` in the
 environment. Adds roughly 4 GB to the image and runs at 5–15 s/page on CPU.
 
 | ID | Engine | Vendor | License | Notes |
 | --- | --- | --- | --- | --- |
+| `docling` | Docling | IBM / LF AI | MIT | Layout, reading order, table structure |
 | `easyocr` | EasyOCR | JaidedAI | Apache-2.0 | CRAFT + CRNN; robust on rotated labels |
 | `paddleocr` | PaddleOCR PP-OCRv5 | Baidu | Apache-2.0 | Very strong on dense small text |
 | `paddleocr-structure` | PP-StructureV3 | Baidu | Apache-2.0 | Layout + tables + formulas with cell coords |
 | `doctr` | docTR | Mindee / t2k | Apache-2.0 | DBNet + PARSeq; clean word boxes |
-| `surya-cpu` | Surya | Datalab | Apache-2.0 code / OpenRAIL-M weights | Layout + OCR + tables in one model |
+| `surya-cpu` | Surya | Datalab | Apache-2.0 code / OpenRAIL-M weights | Layout + OCR + tables in one model. **Not installable** — see note below |
 | `trocr` | TrOCR | Microsoft | MIT | Transformer line recognizer |
 | `kraken` | Kraken | Kraken | Apache-2.0 | Historical documents; good on degraded scans |
-| `calamari` | Calamari | Calamari | Apache-2.0 | Line-based, strong on technical fonts |
+| `calamari` | Calamari | Calamari | Apache-2.0 | Line-based, strong on technical fonts. **Not installable** — see note below |
 | `mmocr` | MMOCR | OpenMMLab | Apache-2.0 | Modular detector/recognizer zoo |
 | `nougat` | Nougat | Meta | MIT | Academic PDFs; LaTeX math |
-| `mineru-cpu` | MinerU pipeline | OpenDataLab | MinerU OSL | Full pipeline; very slow on CPU |
-| `marker-cpu` | Marker (fast) | Datalab | Apache-2.0 code / OpenRAIL-M weights | Run with `--disable_ocr` to stay CPU-viable |
+| `mineru-cpu` | MinerU pipeline | OpenDataLab | MinerU OSL | Full pipeline; very slow on CPU. **Not installable** — see note below |
+| `marker-cpu` | Marker (fast) | Datalab | Apache-2.0 code / OpenRAIL-M weights | Run with `--disable_ocr` to stay CPU-viable. **Not installable** — see note below |
 | `ocrad` | GNU Ocrad | GNU | GPL-3.0 | Legacy control; expect poor results |
 | `gocr` | GOCR | GOCR | GPL-2.0 | Legacy control |
+
+> **Not installable** means the package's dependency pins cannot coexist with the
+> core set, so it is absent from `requirements-heavy.txt`. The adapter stays
+> registered and reports as unavailable. Specifically: `surya-ocr` and
+> `marker-pdf` need `pillow<11` and `huggingface-hub>=1.5` while Docling needs
+> `huggingface_hub<1`; `mineru` needs `pillow>=11`; `calamari-ocr` needs a
+> TensorFlow build with no Python 3.12 wheel.
 
 ---
 

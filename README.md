@@ -57,8 +57,8 @@ full table with licenses, costs, and free-tier limits.
 
 | Tier | Count | Runs on Railway | Notes |
 | --- | --- | --- | --- |
-| 1 — Core CPU | 17 | Yes, default image | Text-layer extractors, Tesseract variants, Docling, RapidOCR, table tools |
-| 2 — Heavy CPU | 14 | Only with `INSTALL_HEAVY=true` | torch/paddle engines; ~4 GB extra image, 5–15 s/page |
+| 1 — Core CPU | 16 | Yes, default image | Text-layer extractors, Tesseract variants, RapidOCR, table tools |
+| 2 — Heavy CPU | 15 | Only with `INSTALL_HEAVY=true` | torch/paddle engines incl. Docling; ~4 GB extra image, 5–15 s/page |
 | 3 — Free API | 9 | Yes, with a key | OCR.space, Google Vision, Azure DI, Gemini, Mistral, LlamaParse |
 | 4 — Paid API | 10 | Yes, with a key | Textract, Mathpix, Datalab, DeepInfra, OpenAI, Claude, Reducto |
 | 5 — GPU only | 10 | **No** | Documented stubs; see [docs/GPU_ENGINES.md](docs/GPU_ENGINES.md) |
@@ -74,6 +74,17 @@ with an explanation but never executable.
 To benchmark them, either use a hosted API (Datalab, DeepInfra, OpenRouter) or
 run the adapters on a GPU host — the `vllm serve` commands are in
 [docs/GPU_ENGINES.md](docs/GPU_ENGINES.md).
+
+### Best performer so far
+
+**RapidOCR** (`rapidocr`, PP-OCRv4 on ONNX Runtime) is the strongest engine on the
+sample corpus. It needs no API key, no GPU, and no torch — just ONNX Runtime — and
+it is the only engine that reliably recovers text from CAD plots where the labels
+were converted to vector outlines.
+
+Its cost is latency: the ONNX models are loaded per subprocess invocation, so a
+single page takes roughly 30–50 s on a Railway CPU container. The registry gives
+it a 600 s timeout to leave headroom for multi-page documents.
 
 ---
 
@@ -156,6 +167,17 @@ docker build --build-arg INSTALL_HEAVY=true -t masterocr:heavy .
 Then set `INSTALL_HEAVY=true` in the environment so the registry marks them
 available. Expect a ~4 GB image and slow CPU inference.
 
+Docling lives in this tier rather than the default image: it is CPU-capable, but
+it pulls `torch` (and the CUDA wheels that come with it) as a transitive
+dependency, which is far too large to ship by default.
+
+Three heavy engines are deliberately absent from `requirements-heavy.txt` because
+their pins cannot coexist with the core set — `surya-ocr` and `marker-pdf` need
+`pillow<11` and `huggingface-hub>=1.5` while Docling needs `huggingface_hub<1`,
+`mineru` needs `pillow>=11`, and `calamari-ocr` needs a TensorFlow build that has
+no Python 3.12 wheel. Their adapters stay registered and report as unavailable
+rather than breaking the build.
+
 ---
 
 ## Architecture
@@ -233,7 +255,9 @@ See [docs/ENGINES.md](docs/ENGINES.md) for the per-engine table.
 ## Limits
 
 - 50 MB upload, first 25 pages processed (both configurable).
-- Results are retained for 72 hours by default.
+- Results are retained for 72 hours by default. An hourly sweep deletes expired
+  documents from SQLite and removes their upload and page images from the
+  volume, so storage stays bounded without a cron service.
 - No authentication. Anyone with the URL can upload and run engines, which costs
   money if paid API keys are configured. Put it behind a proxy or keep paid keys
   off a public deployment.

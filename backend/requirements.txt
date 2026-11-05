@@ -24,8 +24,9 @@ pytesseract==0.3.13
 ocrmypdf==16.4.3
 
 # Document parsers
-docling==2.14.0
-markitdown[pdf]==0.0.1a3
+# docling moved to requirements-heavy.txt: it pulls torch (and CUDA wheels) as a
+# transitive dependency, which is far too large for the default image.
+markitdown==0.0.1a3
 unstructured[pdf]==0.16.11
 
 # Tables

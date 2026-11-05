@@ -188,8 +188,9 @@ _TIER1: list[Engine] = [
         license="Apache-2.0",
         license_note="Permissive; ONNX models derived from PaddleOCR (also Apache-2.0).",
         output="text",
-        timeout_s=180,
-        notes="PaddleOCR accuracy without the Paddle runtime. Best CPU OCR value in the roster.",
+        timeout_s=600,
+        notes="PaddleOCR accuracy without the Paddle runtime. Best CPU OCR value in the "
+        "roster and the strongest performer on the sample corpus.",
         tags=("ocr", "onnx", "recommended"),
     ),
     # --- document parsers ----------------------------------------------
@@ -197,14 +198,16 @@ _TIER1: list[Engine] = [
         id="docling",
         name="Docling",
         vendor="IBM / LF AI & Data",
-        tier=1,
+        tier=2,
         kind="docparse",
         license="MIT",
         license_note="Code MIT. Bundled layout/table models are permissive; GraniteDocling VLM "
         "weights are Apache-2.0.",
         output="markdown",
         timeout_s=300,
-        notes="Strong layout + reading order + table structure. CPU-capable default pipeline.",
+        requires_heavy=True,
+        notes="Strong layout + reading order + table structure. Pulls torch, so it ships "
+        "only with INSTALL_HEAVY=true.",
         tags=("docparse", "layout", "tables", "recommended"),
     ),
     Engine(

@@ -311,6 +311,17 @@ class Store:
             )
 
     # --- retention ----------------------------------------------------
+    def expired_documents(self, cutoff: float) -> list[dict[str, Any]]:
+        """Documents older than `cutoff`, with the paths needed to delete them."""
+        with self._connect() as conn:
+            return [
+                dict(row)
+                for row in conn.execute(
+                    "SELECT id, stored_path FROM documents WHERE created_at < ?",
+                    (cutoff,),
+                )
+            ]
+
     def purge_older_than(self, cutoff: float) -> int:
         with self._connect() as conn:
             cursor = conn.execute(

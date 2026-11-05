@@ -213,3 +213,60 @@ def test_missing_credential_reports_reason():
     if not settings.mistral_key:
         assert available is False
         assert "credential" in reason.lower()
+
+
+def test_retention_purges_expired_documents_and_files(tmp_path, monkeypatch):
+    """The sweep must delete both the DB rows and the files on the volume."""
+    import time
+
+    from app.config import Settings
+    from app.services.store import Store
+
+    settings = Settings(DATA_DIR=tmp_path, RETENTION_HOURS=72)
+    settings.ensure_dirs()
+    store = Store(settings.db_path)
+
+    def add(document_id: str, created_at: float) -> Path:
+        job = settings.work_dir / document_id
+        job.mkdir(parents=True, exist_ok=True)
+        pdf = job / "input.pdf"
+        pdf.write_bytes(b"%PDF-1.4")
+        store.create_document(
+            document_id=document_id,
+            filename=f"{document_id}.pdf",
+            size_bytes=8,
+            page_count=1,
+            classification="raster",
+            stored_path=str(pdf),
+            pages=[
+                {
+                    "number": 1,
+                    "classification": "raster",
+                    "text_chars": 0,
+                    "image_count": 1,
+                    "vector_paths": 0,
+                    "image_path": None,
+                }
+            ],
+        )
+        with store._connect() as conn:
+            conn.execute(
+                "UPDATE documents SET created_at = ? WHERE id = ?",
+                (created_at, document_id),
+            )
+        return job
+
+    now = time.time()
+    old_job = add("old", now - 73 * 3600)
+    new_job = add("new", now)
+
+    import app.main as main
+
+    monkeypatch.setattr(main, "settings", settings)
+    monkeypatch.setattr(main, "store", store)
+
+    assert main._purge_expired() == 1
+    assert store.get_document("old") is None
+    assert not old_job.exists()
+    assert store.get_document("new") is not None
+    assert new_job.exists()

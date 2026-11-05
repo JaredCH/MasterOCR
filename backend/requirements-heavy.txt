@@ -1,19 +1,31 @@
 # MasterOCR backend — heavy CPU engines
 # Installed only when the image is built with INSTALL_HEAVY=true.
 # Expect ~4 GB of extra image size and 5-15 s/page on CPU.
+#
+# This set is resolved as a whole against requirements.txt. Several engines are
+# deliberately absent because their pins cannot coexist with the core set:
+#
+#   surya-ocr / marker-pdf  need pillow<11 and huggingface-hub>=1.5, but
+#                           docling 2.14.0 needs huggingface_hub<1.
+#   mineru                  needs pillow>=11, which surya-ocr forbids.
+#   calamari-ocr            needs tensorflow<2.16 via ocrd-fork-tfaip, and no
+#                           such wheel exists for Python 3.12.
+#
+# Those adapters stay registered and report as unavailable rather than breaking
+# the build. Revisit when docling ships a huggingface_hub 1.x release.
 
-torch==2.5.1
-torchvision==0.20.1
+torch==2.9.0
+torchvision==0.24.0
+
+# Docling is CPU-capable but pulls torch, so it lives here rather than in the
+# default image. The registry marks it requires_heavy=True.
+docling==2.14.0
 
 easyocr==1.7.2
 paddlepaddle==3.0.0
 paddleocr==2.9.1
 python-doctr[torch]==1.0.1
-surya-ocr==0.14.5
-transformers==4.47.1
-kraken==5.0.0
-calamari-ocr==2.1.0
+transformers==4.51.3
+kraken==7.1.1
 mmocr==1.0.1
 nougat-ocr==0.1.17
-mineru==0.9.3
-marker-pdf==1.2.3
