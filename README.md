@@ -1,10 +1,14 @@
 # MasterOCR
 
-Compare OCR engines on PDF isometrics and schematics.
+Compare OCR engines on PDF isometrics and schematics — and capture tables from
+drawings with named regions.
 
 Upload a drawing, and MasterOCR runs it through every configured engine, then
 shows you the results side by side with accuracy metrics, hallucination flags,
-and your own star ratings.
+and your own star ratings. A second page lets you draw named regions on a page
+and get true tables with blank cells preserved.
+
+![Engine picker](docs/screenshots/compare-engines.png)
 
 **Live:** deploy your own on Railway (see below).
 
@@ -33,6 +37,43 @@ MasterOCR measures which engines actually handle this.
 3. **Runs every enabled engine** in an isolated subprocess with a hard timeout.
 4. **Scores the results** against a reference and against each other.
 5. **Lets you rate** each engine 1–5 stars and export everything as CSV/JSON.
+
+## Region capture (Phase 2)
+
+The engine-compare page answers *which engine is best*. The region-capture page
+answers a different question: *get this specific table out of this drawing, with
+the blanks in the right places.*
+
+Open `#/regions`, pick a document, and draw named rectangles on the page:
+
+![Region editor](docs/screenshots/regions-editor.png)
+
+Each region gets a name and a kind:
+
+| Kind | What it does |
+| --- | --- |
+| **Table** | Detects the grid inside the rectangle (ruling lines, or whitespace gutters as a fallback), OCRs each cell, and renders a true table — blank cells stay blank and columns stay aligned |
+| **Single line** | One OCR pass over the rectangle — for dimension callouts, titles, part numbers |
+| **Text block** | Paragraph OCR over the rectangle |
+| **Key-value** | Same as text block, but flagged for structured extraction |
+| **Ignore** | Excluded from all output — title blocks, stamps, geometry |
+
+Then run it. Every selected engine runs per region, and table regions render as
+real tables with per-cell confidence:
+
+![Region results](docs/screenshots/regions-results.png)
+
+- **Blank rule:** a cell with no text above the confidence floor renders blank;
+  text below the floor is shown but tinted amber.
+- **Two table pipelines, one output:** cell-by-cell OCR for raster engines, and
+  whole-region table engines (Camelot, img2table) clipped to the region — both
+  normalize to the same rows × columns matrix.
+- **Templates:** save a page's layout as a named template and apply it to any
+  page of any document, then nudge the regions into place.
+- **Exports:** per-table CSV/JSON, plus a combined document export where tables
+  come out as tables, single lines as text, and ignore regions are omitted.
+
+![Region picker](docs/screenshots/regions-picker.png)
 
 ### Metrics
 
