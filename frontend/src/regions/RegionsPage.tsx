@@ -4,6 +4,7 @@ import {
   createTemplate,
   deleteTemplate,
   fetchLayout,
+  fetchLatestRegionResults,
   fetchPageGrid,
   listDocuments,
   listTemplates,
@@ -73,12 +74,14 @@ export default function RegionsPage() {
       setResults([]);
       setError(null);
       try {
-        const [fetchedLayout, fetchedGrid] = await Promise.all([
+        const [fetchedLayout, fetchedGrid, latestResults] = await Promise.all([
           fetchLayout(id, 1),
           fetchPageGrid(id, 1),
+          fetchLatestRegionResults(id, 1).catch(() => ({ results: [] })),
         ]);
         setLayout(fetchedLayout);
         setGrid(fetchedGrid);
+        setResults(latestResults.results ?? []);
       } catch (err) {
         setError((err as Error).message);
       }
@@ -109,12 +112,16 @@ export default function RegionsPage() {
       setSelectedId(null);
       setResults([]);
       try {
-        const [fetchedLayout, fetchedGrid] = await Promise.all([
+        const [fetchedLayout, fetchedGrid, latestResults] = await Promise.all([
           fetchLayout(documentId, page),
           fetchPageGrid(documentId, page),
+          fetchLatestRegionResults(documentId, page).catch(() => ({
+            results: [],
+          })),
         ]);
         setLayout(fetchedLayout);
         setGrid(fetchedGrid);
+        setResults(latestResults.results ?? []);
       } catch (err) {
         setError((err as Error).message);
       }

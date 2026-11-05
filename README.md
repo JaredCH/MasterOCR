@@ -1,16 +1,32 @@
 # MasterOCR
 
-Compare OCR engines on PDF isometrics and schematics — and capture tables from
-drawings with named regions.
+**Stop guessing which OCR engine can actually read your engineering drawings.**
 
-Upload a drawing, and MasterOCR runs it through every configured engine, then
-shows you the results side by side with accuracy metrics, hallucination flags,
-and your own star ratings. A second page lets you draw named regions on a page
-and get true tables with blank cells preserved.
+Upload a PDF isometric or schematic, and MasterOCR fires it through every
+configured OCR engine — 60 of them — then scores the results side by side:
+character error rates, hallucination flags, missed dimension callouts, and your
+own star ratings. One page answers *which engine is best*. A second page answers
+*get this exact table out of this drawing* — draw named regions on the page and
+get true tables with blank cells preserved.
 
-![Engine picker](docs/screenshots/compare-engines.png)
+![Engine compare — 15 engines scored on a real spool sheet](docs/screenshots/compare-engines.png)
 
-**Live:** deploy your own on Railway (see below).
+**Why it's different:**
+
+- **Built for drawings, not documents.** Dimension callouts (`Ø`, `R`, `±`),
+  scattered text, and CAD exports where every label is a vector outline — the
+  metrics are tuned for exactly this failure mode.
+- **60 engines, one click.** Text-layer extractors, Tesseract variants, RapidOCR,
+  table tools, cloud APIs, and heavy local models — all registered, all scored
+  against the same reference.
+- **Region capture with real tables.** Draw a rectangle around a BOM table, and
+  get a rows × columns matrix where blank cells stay blank and columns stay
+  aligned — not a wall of text.
+- **Runs anywhere.** One FastAPI service, SQLite storage, subprocess-isolated
+  engines. Deploys to Railway in one command. No GPUs required — and it's honest
+  about which engines need one.
+
+**Live demo:** deploy your own in two minutes (see [Deploy](#deploy-to-railway)).
 
 ---
 
@@ -38,7 +54,7 @@ MasterOCR measures which engines actually handle this.
 4. **Scores the results** against a reference and against each other.
 5. **Lets you rate** each engine 1–5 stars and export everything as CSV/JSON.
 
-## Region capture (Phase 2)
+## Region capture
 
 The engine-compare page answers *which engine is best*. The region-capture page
 answers a different question: *get this specific table out of this drawing, with
@@ -222,7 +238,7 @@ rather than breaking the build.
 
 ---
 
-## Architecture
+## How the backend works
 
 ```
 Browser ──► FastAPI ──► SQLite (/data)
@@ -244,6 +260,23 @@ row in the results table, not a 500.
 
 **Why one service?** FastAPI serves the built React bundle from the same origin,
 so there is no CORS configuration and no second Railway service to pay for.
+
+### Region pipeline
+
+Region runs reuse the same isolation model, one level down:
+
+1. **Crop** — each region is clipped from the 300 DPI page image (PyMuPDF).
+2. **Grid detection** — for table regions, numpy finds ruling lines (or falls
+   back to whitespace gutters), then drops empty margin bands so the grid hugs
+   the ink.
+3. **Cell OCR** — raster engines OCR each cell individually (single-line PSM);
+   table engines (Camelot, img2table) get the whole region clipped and parse
+   their own output. Both paths normalize to the same rows × columns matrix.
+4. **Blank classification** — each cell is measured for ink inside an inset
+   bounding box; cells below the confidence floor render blank, low-confidence
+   text is tinted amber.
+5. **Progress** — runs are async with SSE progress events, including
+   per-engine start notifications, so long runs stay visible in the UI.
 
 ### Adding an engine
 
