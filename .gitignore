@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+# Runtime data
+data/
+*.db
+*.db-wal
+*.db-shm
+uploads/
+work/
+outputs/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Sample PDFs are large binaries and contain customer drawings; keep the
+# manifest, not the files. `**` is required — `samples/*.pdf` only matches the
+# top level and would let samples/set1/** and samples/set2/** through.
+samples/**/*.pdf
+samples/**/*.zip
+samples/**/*.xlsx
+samples/**/*.csv
+!samples/README.md

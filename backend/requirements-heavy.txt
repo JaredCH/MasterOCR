@@ -1,0 +1,19 @@
+# MasterOCR backend — heavy CPU engines
+# Installed only when the image is built with INSTALL_HEAVY=true.
+# Expect ~4 GB of extra image size and 5-15 s/page on CPU.
+
+torch==2.5.1
+torchvision==0.20.1
+
+easyocr==1.7.2
+paddlepaddle==3.0.0
+paddleocr==2.9.1
+python-doctr[torch]==1.0.1
+surya-ocr==0.14.5
+transformers==4.47.1
+kraken==5.0.0
+calamari-ocr==2.1.0
+mmocr==1.0.1
+nougat-ocr==0.1.17
+mineru==0.9.3
+marker-pdf==1.2.3
