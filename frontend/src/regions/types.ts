@@ -62,6 +62,16 @@ export interface RegionRunResultRow {
   result: RegionResult | null;
 }
 
+export interface RunSummary {
+  id: string;
+  document_id: string;
+  page_number: number;
+  status: string;
+  error: string | null;
+  created_at: number;
+  finished_at: number | null;
+}
+
 export interface RegionRunDetail {
   id: string;
   document_id: string;

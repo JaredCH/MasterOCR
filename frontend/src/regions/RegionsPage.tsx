@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   applyTemplate,
   createTemplate,
@@ -7,6 +7,7 @@ import {
   fetchLatestRegionResults,
   fetchPageGrid,
   listDocuments,
+  listRegionRuns,
   listTemplates,
   pageImageUrl,
   saveLayout,
@@ -23,6 +24,7 @@ import type {
   RegionKind,
   RegionProgressEvent,
   RegionRunDetail,
+  RunSummary,
   TemplateSummary,
 } from "./types";
 import RegionCanvas from "./RegionCanvas";
@@ -46,6 +48,9 @@ export default function RegionsPage() {
   const [results, setResults] = useState<RegionRunDetail["results"]>([]);
   const [progress, setProgress] = useState<RegionProgressEvent | null>(null);
   const [running, setRunning] = useState(false);
+  const [selectedEngines, setSelectedEngines] = useState<Set<string>>(new Set());
+  const [runs, setRuns] = useState<RunSummary[]>([]);
+  const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const unsubscribe = useRef<(() => void) | null>(null);
@@ -60,7 +65,19 @@ export default function RegionsPage() {
     listDocuments().then(setDocuments).catch(() => setDocuments([]));
     fetch("/api/engines")
       .then((response) => response.json())
-      .then((data) => setEngines(data.engines ?? []))
+      .then((data) => {
+        const all = data.engines ?? [];
+        setEngines(all);
+        // Default: every runnable engine ON. Users toggle OFF what they
+        // don't want rather than hunting for checkboxes to enable.
+        setSelectedEngines(
+          new Set(
+            (all as EngineInfo[])
+              .filter((engine) => engine.available)
+              .map((e) => e.id)
+          )
+        );
+      })
       .catch(() => setEngines([]));
     refreshTemplates();
   }, [refreshTemplates]);
@@ -72,16 +89,19 @@ export default function RegionsPage() {
       setPageNumber(1);
       setPhase("edit");
       setResults([]);
+      setActiveRunId(null);
       setError(null);
       try {
-        const [fetchedLayout, fetchedGrid, latestResults] = await Promise.all([
+        const [fetchedLayout, fetchedGrid, latestResults, runHistory] = await Promise.all([
           fetchLayout(id, 1),
           fetchPageGrid(id, 1),
           fetchLatestRegionResults(id, 1).catch(() => ({ results: [] })),
+          listRegionRuns(id, 1).catch(() => ({ runs: [] })),
         ]);
         setLayout(fetchedLayout);
         setGrid(fetchedGrid);
         setResults(latestResults.results ?? []);
+        setRuns(runHistory.runs ?? []);
       } catch (err) {
         setError((err as Error).message);
       }
@@ -111,17 +131,20 @@ export default function RegionsPage() {
       setPageNumber(page);
       setSelectedId(null);
       setResults([]);
+      setActiveRunId(null);
       try {
-        const [fetchedLayout, fetchedGrid, latestResults] = await Promise.all([
+        const [fetchedLayout, fetchedGrid, latestResults, runHistory] = await Promise.all([
           fetchLayout(documentId, page),
           fetchPageGrid(documentId, page),
           fetchLatestRegionResults(documentId, page).catch(() => ({
             results: [],
           })),
+          listRegionRuns(documentId, page).catch(() => ({ runs: [] })),
         ]);
         setLayout(fetchedLayout);
         setGrid(fetchedGrid);
         setResults(latestResults.results ?? []);
+        setRuns(runHistory.runs ?? []);
       } catch (err) {
         setError((err as Error).message);
       }
@@ -157,23 +180,39 @@ export default function RegionsPage() {
     setError(null);
     try {
       await saveNow();
-      const started = await startRegionRun(documentId, pageNumber, [], []);
+      const engineIds = [...selectedEngines];
+      const started = await startRegionRun(documentId, pageNumber, [], engineIds);
       setRunning(true);
+      setActiveRunId(started.run_id);
+      setResults([]);
       unsubscribe.current = subscribeRegionProgress(
         documentId,
         started.run_id,
-        (event) => setProgress(event),
+        (event) =>
+          setProgress((current) => {
+            // `engine` events carry no counters — keep the last known totals
+            // so the progress bar never collapses to 0/0 mid-run.
+            const merged = { ...current, ...event } as RegionProgressEvent;
+            if (event.type === "engine" && current) {
+              merged.completed = current.completed ?? 0;
+              merged.total = current.total ?? 0;
+            }
+            return merged;
+          }),
         async () => {
           setRunning(false);
           const detail = await fetchRegionRunSafe(documentId, started.run_id);
           if (detail) setResults(detail.results);
+          listRegionRuns(documentId, pageNumber)
+            .then((data) => setRuns(data.runs ?? []))
+            .catch(() => undefined);
         }
       );
     } catch (err) {
       setError((err as Error).message);
       setRunning(false);
     }
-  }, [documentId, pageNumber, saveNow]);
+  }, [documentId, pageNumber, saveNow, selectedEngines]);
 
   const fetchRegionRunSafe = async (
     documentId: string,
@@ -254,6 +293,19 @@ export default function RegionsPage() {
     [documentId, pageNumber]
   );
 
+  // Per-engine status for the current run, derived from results as they land.
+  // Must live above the early return so hook order stays stable.
+  const engineStatus = useMemo(() => {
+    const map = new Map<string, { ok: number; failed: number }>();
+    for (const row of results) {
+      const entry = map.get(row.engine_id) ?? { ok: 0, failed: 0 };
+      if (row.status === "ok") entry.ok += 1;
+      else entry.failed += 1;
+      map.set(row.engine_id, entry);
+    }
+    return map;
+  }, [results]);
+
   if (phase === "pick") {
     return (
       <div className="app">
@@ -316,6 +368,21 @@ export default function RegionsPage() {
     progress?.type === "engine" && progress.region_id
       ? regions.find((r) => r.id === progress.region_id)?.name
       : null;
+  const availableEngines = engines.filter((engine) => engine.available);
+  const allOn =
+    availableEngines.length > 0 &&
+    availableEngines.every((engine) => selectedEngines.has(engine.id));
+  const toggleEngine = (id: string) =>
+    setSelectedEngines((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const toggleAll = () =>
+    setSelectedEngines(
+      allOn ? new Set() : new Set(availableEngines.map((e) => e.id))
+    );
 
   return (
     <div className="app wide">
@@ -334,6 +401,50 @@ export default function RegionsPage() {
       </header>
 
       {error && <div className="banner error">{error}</div>}
+
+      <section className="panel">
+        <div className="doc-header">
+          <div>
+            <h2>Engines for this run</h2>
+            <p className="hint">
+              All runnable engines are ON by default — toggle OFF any you don't
+              want. Fewer engines = faster runs.
+            </p>
+            <div className="engine-picker">
+              <button type="button" className="linklike" onClick={toggleAll}>
+                {allOn ? "Turn all off" : "Turn all on"}
+              </button>
+              {availableEngines.map((engine) => {
+                const on = selectedEngines.has(engine.id);
+                const status = engineStatus.get(engine.id);
+                return (
+                  <label
+                    key={engine.id}
+                    className={`engine-chip ${on ? "on" : ""}`}
+                    title={`${engine.vendor} · ${engine.license}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      onChange={() => toggleEngine(engine.id)}
+                      disabled={running}
+                    />
+                    <span>{engine.name}</span>
+                    {running && status && (
+                      <span className="chip-status">
+                        {status.ok > 0 && <em className="ok">{status.ok}✓</em>}
+                        {status.failed > 0 && (
+                          <em className="fail">{status.failed}✗</em>
+                        )}
+                      </span>
+                    )}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
 
       <section className="panel">
         <div className="doc-header">
@@ -374,13 +485,17 @@ export default function RegionsPage() {
               type="button"
               className="accent"
               onClick={() => void runRegions()}
-              disabled={running || regions.every((region) => region.kind === "ignore")}
+              disabled={
+                running ||
+                selectedEngines.size === 0 ||
+                regions.every((region) => region.kind === "ignore")
+              }
             >
               {running
                 ? currentEngine
                   ? `Running ${completed}/${total} · ${currentRegionName ?? ""} · ${currentEngine}…`
                   : `Running ${completed}/${total}…`
-                : "Run regions"}
+                : `Run regions (${selectedEngines.size} engines)`}
             </button>
           </div>
         </div>
@@ -469,6 +584,33 @@ export default function RegionsPage() {
         documentId={documentId!}
         pageNumber={pageNumber}
       />
+
+      {runs.length > 0 && (
+        <section className="panel">
+          <h2>Past runs</h2>
+          <ul className="run-history">
+            {runs.map((run) => (
+              <li key={run.id}>
+                <button
+                  type="button"
+                  className={run.id === activeRunId ? "on" : ""}
+                  onClick={() => {
+                    setActiveRunId(run.id);
+                    void fetchRegionRunSafe(documentId!, run.id).then((detail) => {
+                      if (detail) setResults(detail.results);
+                    });
+                  }}
+                >
+                  <strong>
+                    {new Date(run.created_at * 1000).toLocaleString()}
+                  </strong>
+                  <span className={`run-status ${run.status}`}>{run.status}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import type {
   Region,
   RegionProgressEvent,
   RegionRunDetail,
+  RunSummary,
   TemplateSummary,
 } from "./types";
 
@@ -118,6 +119,17 @@ export async function fetchRegionRun(
 ): Promise<RegionRunDetail> {
   return json<RegionRunDetail>(
     await fetch(`${BASE}/documents/${documentId}/regions/runs/${runId}`)
+  );
+}
+
+export async function listRegionRuns(
+  documentId: string,
+  pageNumber: number
+): Promise<{ runs: RunSummary[] }> {
+  return json(
+    await fetch(
+      `${BASE}/documents/${documentId}/regions/runs?page_number=${pageNumber}`
+    )
   );
 }
 

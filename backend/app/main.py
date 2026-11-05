@@ -748,6 +748,19 @@ def get_region_run(document_id: str, run_id: str) -> dict[str, Any]:
     return run
 
 
+@app.get("/api/documents/{document_id}/regions/runs")
+def list_region_runs(document_id: str, page_number: int) -> dict[str, Any]:
+    """Run history for a page, newest first (id, status, timestamps)."""
+    document = store.get_document(document_id)
+    if document is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return {
+        "document_id": document_id,
+        "page_number": page_number,
+        "runs": store.list_region_runs(document_id, page_number),
+    }
+
+
 @app.get("/api/documents/{document_id}/regions/results")
 def get_region_results(document_id: str, page_number: int) -> dict[str, Any]:
     """Results from the most recent finished run for a page."""
