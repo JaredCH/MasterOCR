@@ -14,6 +14,387 @@
   --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
 }
 
+/* --- nav bar ------------------------------------------------------------ */
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 10px 20px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.nav-brand {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.nav a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 14px;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.nav a.on {
+  color: var(--text);
+  background: var(--panel-2);
+}
+
+.nav a:hover {
+  color: var(--text);
+}
+
+/* --- region capture ------------------------------------------------------ */
+
+.app.wide {
+  max-width: 1500px;
+}
+
+.canvas-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.canvas-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.zoom-controls button {
+  padding: 2px 10px;
+}
+
+.canvas-viewport {
+  position: relative;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+  max-height: 78vh;
+  cursor: crosshair;
+}
+
+.canvas-viewport.panning {
+  cursor: grab;
+}
+
+.canvas-inner {
+  position: relative;
+  line-height: 0;
+}
+
+.canvas-inner img {
+  display: block;
+  max-width: 100%;
+  user-select: none;
+}
+
+.region-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.region-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .region-workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
+.region-side {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.region-list h2 {
+  margin: 0 0 4px;
+  font-size: 17px;
+}
+
+.region-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.region-card.selected {
+  border-color: var(--accent);
+  background: var(--panel-2);
+}
+
+.region-card-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.region-name {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 5px 8px;
+  font-size: 14px;
+}
+
+.region-card select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 5px;
+  font-size: 13px;
+}
+
+.region-engines {
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.region-engines summary {
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.engine-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.engine-check {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--text);
+}
+
+.region-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.region-actions button {
+  font-size: 12px;
+  padding: 3px 10px;
+}
+
+button.danger {
+  color: var(--bad);
+  border-color: rgba(248, 81, 73, 0.4);
+}
+
+button.accent {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.kind-picker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.kind-picker select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 5px;
+}
+
+.doc-picker {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.doc-picker button {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.template-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.template-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.template-list .actions {
+  display: flex;
+  gap: 4px;
+}
+
+.template-list .actions button {
+  font-size: 12px;
+  padding: 2px 8px;
+}
+
+/* --- results tables ------------------------------------------------------ */
+
+.engine-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.engine-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.engine-tabs button.on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-dot.ok {
+  background: var(--good);
+}
+
+.status-dot.error {
+  background: var(--bad);
+}
+
+.kind-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.kind-badge {
+  font-size: 11px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 8px;
+  margin-left: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.data-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+}
+
+.data-table td {
+  border: 1px solid var(--border);
+  padding: 5px 10px;
+  min-width: 40px;
+  white-space: pre-wrap;
+}
+
+.data-table td.cell-blank {
+  background: rgba(139, 155, 171, 0.05);
+}
+
+.data-table td.cell-low {
+  background: rgba(210, 153, 34, 0.15);
+  color: var(--warn);
+}
+
+.text-result pre {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  white-space: pre-wrap;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.kv {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.kv-key {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.kv-value {
+  font-family: var(--mono);
+}
+
 * {
   box-sizing: border-box;
 }
